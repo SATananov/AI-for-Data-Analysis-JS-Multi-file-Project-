@@ -1,4 +1,4 @@
-// ===== app.js (stable, with manual delimiter + small charts + per-chart downloads) =====
+// ===== app.js (full reset + confirm, per-chart downloads, forecast summary at bottom) =====
 const $ = s => document.querySelector(s);
 const fmt = new Intl.NumberFormat('bg-BG');
 const fmt2 = new Intl.NumberFormat('bg-BG', { maximumFractionDigits: 2 });
@@ -38,20 +38,87 @@ function fillSelects(){
   $('#numCol').innerHTML = headers.map(h=>`<option>${h}</option>`).join('');
   $('#dateCol').innerHTML = '<option></option>' + headers.map(h=>`<option>${h}</option>`).join('');
 }
-function resetUI(){
-  rawRows=[]; headers=[]; charts.forEach(c=>c.destroy()); charts=[];
-  $('#shape').textContent = '—'; $('#sep').textContent = usedDelimiter || 'auto';
-  $('#preview thead').innerHTML=''; $('#preview tbody').innerHTML='';
-  $('#agg thead').innerHTML=''; $('#agg tbody').innerHTML='';
-  $('#kpis').innerHTML=''; $('#report').value='';
-  const st = $('#status'); if(st) st.textContent = 'Избери CSV файл…';
-  window.__analysis = undefined;
+function ensureSummaryBox(){
+  let box = document.getElementById('forecastSummary');
+  if(!box){
+    box = document.createElement('div');
+    box.id = 'forecastSummary';
+    box.style.margin = '2rem 0';
+    box.style.padding = '1rem';
+    box.style.border = '1px solid #334155';
+    box.style.borderRadius = '8px';
+    box.style.background = '#0b1324';
+    const h = document.createElement('h3');
+    h.textContent = 'Синтезиран извод';
+    h.style.color = '#22d3ee';
+    h.style.margin = '0 0 .5rem 0';
+    const p = document.createElement('p');
+    p.id = 'forecastSummaryText';
+    p.style.whiteSpace = 'pre-wrap';
+    p.style.margin = 0;
+    box.appendChild(h);
+    box.appendChild(p);
+    // сложи го най-отдолу в <main>
+    const main = document.querySelector('main') || document.body;
+    main.appendChild(box);
+  }
+  return box;
 }
-$('#btnReset').onclick = ()=>{
+function setSummary(text){
+  const box = ensureSummaryBox();
+  const p = document.getElementById('forecastSummaryText');
+  if(p){ p.textContent = text; }
+}
+function clearSummary(){
+  const box = document.getElementById('forecastSummary');
+  if(box) box.remove();
+}
+
+// ---------- FULL RESET ----------
+function resetUI(){
+  // вътрешно състояние
+  rawRows = [];
+  headers = [];
+  charts.forEach(c=>c && c.destroy());
+  charts = [];
   fileText = '';
   usedDelimiter = 'auto';
+  window.__analysis = undefined;
+
+  // HTML елементи
+  $('#shape').textContent = '—';
+  $('#sep').textContent = 'auto';
+  $('#preview thead').innerHTML = '';
+  $('#preview tbody').innerHTML = '';
+  $('#agg thead').innerHTML = '';
+  $('#agg tbody').innerHTML = '';
+  $('#kpis').innerHTML = '';
+  $('#report').value = '';
+
+  const st = $('#status');
+  if (st) st.textContent = 'Избери CSV файл…';
+
+  // селектите се изпразват
+  $('#catCol').innerHTML = '';
+  $('#numCol').innerHTML = '';
+  $('#dateCol').innerHTML = '';
+
+  // файл инпутът се нулира
+  const fileInput = $('#file');
+  if (fileInput) fileInput.value = '';
+
+  // delimiter селектор на auto
+  const sel = $('#delimiterSel');
+  if (sel) sel.value = 'auto';
+
+  // махаме синтезирания извод
+  clearSummary();
+}
+// Потвърждение при "Нова сесия"
+$('#btnReset').onclick = ()=>{
+  const sure = confirm('Сигурен ли си, че искаш да започнеш нова сесия? Всички данни и настройки ще бъдат изчистени.');
+  if (!sure) return;
   resetUI();
-  const sel = $('#delimiterSel'); if(sel) sel.value = 'auto';
 };
 
 // ---------- parsing core ----------
@@ -64,7 +131,6 @@ async function parseWithDelimiter(text, delim){
     });
   });
 }
-
 /**
  * Парсира fileText с избрания разделител.
  * - 'auto' пробва последователно: ',' -> ';' -> '\t' -> '|'
@@ -159,7 +225,7 @@ $('#btnCharts').onclick=()=>{
   charts.push(new Chart($('#chart2'),{type:'line',data:{labels:agg.map(r=>r.k),datasets:[{label:'Сума',data:agg.map(r=>r.v)}]}}));
   charts.push(new Chart($('#chart3'),{type:'pie',data:{labels:agg.map(r=>r.k),datasets:[{data:agg.map(r=>r.v)}]}}));
 
-  // вързваме бутоните под всяка графика
+  // бутони под всяка графика
   document.querySelectorAll('[data-download]').forEach(btn=>{
     btn.onclick = ()=>{
       const idx = Number(btn.getAttribute('data-download'))-1;
@@ -188,7 +254,7 @@ if(allBtn){
   };
 }
 
-// ---------- forecast ----------
+// ---------- forecast (adds synthesized summary at the bottom) ----------
 $('#btnForecast').onclick=()=>{
   const st=window.__analysis; if(!st){ alert('Първо Анализирай.'); return; }
   const num=st.num, dateCol=st.date;
@@ -204,9 +270,18 @@ $('#btnForecast').onclick=()=>{
   const xs=series.map(p=>p.x), ys=series.map(p=>p.y);
   const { m,b,r2 } = linearRegression(xs,ys);
   const nextX = xs[xs.length-1]+1; const forecast = m*nextX+b;
+
+  // добавяме детайлен текст в отчета (както досега)
   const line = `\n\nПрогноза (линейна регресия) по "${num}":\n• Следваща стойност: ${fmt2.format(forecast)}\n• m: ${m.toFixed(4)}, b: ${b.toFixed(4)}, R²: ${Number.isFinite(r2)?r2.toFixed(3):'N/A'}` + (dateCol?`\n• Времева колона: ${dateCol}`:'\n• Използван е индекс');
   $('#report').value = ($('#report').value ? $('#report').value + line : line);
 
+  // СИНТЕЗИРАН ИЗВОД НАЙ-ОТДОЛУ
+  // тренд според наклона
+  const trend = Math.abs(m) < 1e-6 ? 'равномерен' : (m > 0 ? 'възходящ' : 'низходящ');
+  const summary = `Прогноза за "${num}": следваща стойност ≈ ${fmt2.format(forecast)}. Тренд: ${trend}. Надеждност (R²): ${Number.isFinite(r2)?r2.toFixed(3):'N/A'}.`;
+  setSummary(summary);
+
+  // чертаем регресионна линия върху chart2
   try {
     if(charts[1]) charts[1].destroy();
     const labels = xs.map(String), fit = xs.map(x=>m*x+b);
