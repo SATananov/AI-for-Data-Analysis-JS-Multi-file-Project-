@@ -4,6 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AI for Data Analysis (JS)</title>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./styles.css" />
   <!-- библиотеки -->
   <script defer src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
@@ -14,28 +16,32 @@
   <script defer src="./app.js?v=pro"></script>
 </head>
 <body>
-  <header class="app-header">
+  <header class="topbar">
     <div class="container">
-      <h1>AI for Data Analysis (JS)</h1>
-      <div class="header-actions">
-        <button id="btnExport" class="btn primary" disabled>Експорт отчет</button>
-        <button id="btnExportXlsx" class="btn" disabled>Експорт Excel</button>
-        <button id="btnReset" class="btn danger">Нова сесия</button>
+      <div class="topbar__row">
+        <h1>AI for Data Analysis (JS)</h1>
+        <div class="topbar__actions">
+          <button id="btnExport" class="btn">Експорт отчет</button>
+          <button id="btnExportXlsx" class="btn">Експорт Excel</button>
+          <button id="btnReset" class="btn btn--danger">Нова сесия</button>
+        </div>
       </div>
     </div>
   </header>
 
-  <main class="container app-grid">
-    <!-- КАРТА 1: Данни -->
+  <main class="container">
+    <!-- Зареждане -->
     <section class="card">
-      <div class="card-head">
-        <h2>1) Данни</h2>
-        <p class="muted">Качи CSV файл и избери правилен разделител, ако е нужно.</p>
+      <div class="card__header">
+        <h2>1) Зареди данни</h2>
+        <p class="muted">CSV (UTF-8). Ако колоните са една, пробвай друг разделител.</p>
       </div>
-      <div class="card-body">
-        <div class="row">
+      <div class="card__body grid grid--2">
+        <div>
+          <label class="label">CSV файл</label>
           <input type="file" id="file" accept=".csv,.tsv,.txt" />
-          <label>Разделител:
+          <div class="row">
+            <label class="label">Разделител</label>
             <select id="delimiterSel">
               <option value="auto" selected>Auto</option>
               <option value=",">Запетая (,)</option>
@@ -43,129 +49,125 @@
               <option value="\t">Tab</option>
               <option value="|">Pipe (|)</option>
             </select>
-          </label>
-          <button id="btnReparse" class="btn" disabled>Препарсирай</button>
+            <button id="btnReparse" class="btn btn--secondary" title="Препарсирай с избрания разделител">Препарсирай</button>
+            <button id="btnDemo" class="btn btn--secondary" title="Зареди примерни данни">Демо данни</button>
+          </div>
+          <div class="badges">
+            <span class="badge">Текущ разделител: <b id="sep">auto</b></span>
+            <span class="badge">Форма: <b id="shape">—</b></span>
+          </div>
+          <div id="status" class="status">Избери CSV файл…</div>
         </div>
-
-        <div class="meta">
-          <span>Текущ разделител: <strong id="sep">auto</strong></span>
-          <span>Форма: <strong id="shape">—</strong></span>
-          <span id="status" class="muted">Избери CSV файл…</span>
-        </div>
-
-        <div class="table-wrap">
-          <table id="preview">
-            <thead></thead>
-            <tbody></tbody>
-          </table>
-          <div id="emptyPreview" class="empty">
-            Няма данни за преглед. Качи CSV, за да видиш първите редове.
+        <div>
+          <div class="table-wrap">
+            <table id="preview"><thead></thead><tbody></tbody></table>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- КАРТА 2: Настройки -->
+    <!-- Настройки -->
     <section class="card">
-      <div class="card-head">
-        <h2>2) Настройки</h2>
-        <p class="muted">Избери по кои колони да се групира и измерва.</p>
+      <div class="card__header">
+        <h2>2) Настройки и анализ</h2>
+        <p class="muted">Избери колоните. После изчисли KPI и визуализации.</p>
       </div>
-      <div class="card-body">
-        <div class="row wrap">
-          <label>Категориална
-            <select id="catCol" disabled></select>
-          </label>
-          <label>Числова
-            <select id="numCol" disabled></select>
-          </label>
-          <label>Дата (по избор)
-            <select id="dateCol" disabled></select>
-          </label>
+      <div class="card__body grid grid--4">
+        <div>
+          <label class="label">Категориална колона</label>
+          <select id="catCol" disabled></select>
         </div>
-        <div class="row">
-          <button id="btnAnalyze" class="btn primary" disabled>Анализирай</button>
-          <button id="btnCharts" class="btn" disabled>Визуализации</button>
-          <button id="btnForecast" class="btn" disabled>Прогноза</button>
+        <div>
+          <label class="label">Числова колона</label>
+          <select id="numCol" disabled></select>
         </div>
-        <small class="hint">Съвет: обикновено „Категория“ или „Продукт“ за Категориална, а „Брой продажби“/„Клиенти“ за Числова.</small>
+        <div>
+          <label class="label">Дата (по избор)</label>
+          <select id="dateCol" disabled></select>
+        </div>
+        <div>
+          <label class="label">Функция</label>
+          <select id="aggFunc" disabled>
+            <option value="sum" selected>Сума</option>
+            <option value="avg">Средно</option>
+            <option value="count">Брой</option>
+          </select>
+        </div>
+      </div>
+      <div class="card__footer">
+        <button id="btnAnalyze" class="btn" disabled>Изчисли KPI</button>
+        <button id="btnCharts" class="btn" disabled>Визуализации</button>
+        <button id="btnForecast" class="btn" disabled>Прогноза</button>
       </div>
     </section>
 
-    <!-- КАРТА 3: KPI & Агрегации -->
+    <!-- KPI + Агрегация -->
     <section class="card">
-      <div class="card-head">
-        <h2>3) Резултати</h2>
-        <p class="muted">Ключови показатели и групирани суми по избраната категория.</p>
+      <div class="card__header">
+        <h2>3) Статистики</h2>
       </div>
-      <div class="card-body">
-        <div class="kpi-grid" id="kpis">
-          <!-- KPI ще се вставят тук -->
+      <div class="card__body">
+        <div id="kpis" class="kpi-grid">
+          <!-- KPI карти -->
         </div>
+        <h3 class="mt">Агрегирана таблица</h3>
         <div class="table-wrap">
-          <table id="agg">
-            <thead></thead>
-            <tbody></tbody>
-          </table>
-          <div id="emptyAgg" class="empty">Натисни „Анализирай“, за да видиш резултати.</div>
+          <table id="agg"><thead></thead><tbody></tbody></table>
         </div>
       </div>
     </section>
 
-    <!-- КАРТА 4: Визуализации -->
+    <!-- Визуализации -->
     <section class="card">
-      <div class="card-head">
+      <div class="card__header">
         <h2>4) Визуализации</h2>
-        <p class="muted">Графиките се генерират по текущите настройки.</p>
+        <p class="muted">Под всяка графика има бутон за сваляне.</p>
       </div>
-      <div class="card-body charts-area">
+      <div class="card__body">
         <div class="chart-box">
-          <h3 id="titleChart1">Бар диаграма</h3>
+          <h3>Бар диаграма</h3>
           <canvas id="chart1"></canvas>
-          <button data-download="1" class="btn small" disabled>Свали графика 1</button>
+          <button data-download="1" class="btn btn--secondary">Свали графика 1</button>
         </div>
 
         <div class="chart-box">
-          <h3 id="titleChart2">Линейна диаграма</h3>
+          <h3>Линейна диаграма</h3>
           <canvas id="chart2"></canvas>
-          <button data-download="2" class="btn small" disabled>Свали графика 2</button>
+          <button data-download="2" class="btn btn--secondary">Свали графика 2</button>
         </div>
 
         <div class="chart-box">
-          <h3 id="titleChart3">Пай диаграма</h3>
+          <h3>Пай диаграма</h3>
           <canvas id="chart3"></canvas>
-          <button data-download="3" class="btn small" disabled>Свали графика 3</button>
+          <button data-download="3" class="btn btn--secondary">Свали графика 3</button>
         </div>
 
         <div class="chart-box">
-          <button data-download-all class="btn" disabled>Свали всички графики</button>
+          <button data-download-all class="btn btn--secondary">Свали всички графики</button>
         </div>
       </div>
     </section>
 
-    <!-- КАРТА 5: Отчет -->
+    <!-- Отчет -->
     <section class="card">
-      <div class="card-head">
-        <h2>5) Отчет</h2>
-        <p class="muted">Автоматичен текстов отчет. Можеш да го редактираш преди експорт.</p>
+      <div class="card__header">
+        <h2>5) Автоматичен отчет</h2>
       </div>
-      <div class="card-body">
-        <textarea id="report" rows="10" placeholder="Тук ще се появи автоматичният отчет…" disabled></textarea>
+      <div class="card__body">
+        <textarea id="report" rows="8" placeholder="Обобщение от анализа и прогнозата…"></textarea>
+        <div id="forecastSummary" class="summary is-hidden">
+          <h3>Синтезиран извод</h3>
+          <p id="forecastSummaryText"></p>
+        </div>
       </div>
     </section>
 
-    <!-- Синтезиран извод от Прогнозата -->
-    <section id="forecastSummary" class="card hidden">
-      <div class="card-head">
-        <h2>Синтезиран извод</h2>
-      </div>
-      <div class="card-body">
-        <p id="forecastSummaryText" class="summary"></p>
-      </div>
-    </section>
+    <footer class="footer">
+      <p class="muted">© 2025 AI for Data Analysis — JS</p>
+    </footer>
   </main>
 
-  <!-- Toast -->
-  <div id="toast" class="toast hidden"></div>
+  <!-- toast -->
+  <div id="toast" class="toast is-hidden"></div>
 </body>
 </html>
