@@ -1,4 +1,21 @@
 const $ = s=>document.querySelector(s);
+
+
+const summaryAOA = [
+['Поле','Стойност'],
+['Категориална', cat || '—'],
+['Числова', num || '—'],
+['Дата', date || '—'],
+['Брой записи', n],
+['Средна стойност', Number.isFinite(mean)? mean : '—'],
+['Std (n-1)', Number.isFinite(sd)? sd : '—'],
+['Мин', Number.isFinite(min)? min : '—'],
+['Макс', Number.isFinite(max)? max : '—']
+];
+const wsSummary = XLSX.utils.aoa_to_sheet(summaryAOA);
+XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
+
+
 const aggAOA = [[cat || 'Категория','Сума']].concat(agg.map(r=>[r[cat], r.Sum]));
 const wsAgg = XLSX.utils.aoa_to_sheet(aggAOA);
 XLSX.utils.book_append_sheet(wb, wsAgg, 'Aggregation');
