@@ -1,12 +1,89 @@
-body{font-family:sans-serif;background:#0f172a;color:#e5e7eb;margin:0}
-header{background:#111827;padding:1rem;color:#22d3ee;display:flex;gap:1rem;align-items:center}
-main{padding:1rem}
-section{margin-bottom:2rem}
-.row{display:flex;gap:.5rem;align-items:center;margin:.5rem 0}
-button{padding:.5rem 1rem;border:none;border-radius:6px;cursor:pointer;background:#22d3ee;color:#000;font-weight:bold}
-button:hover{background:#06b6d4}
-select,input[type=file],textarea{margin:.4rem 0;padding:.4rem;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#e5e7eb}
-table{border-collapse:collapse;width:100%;margin-top:.5rem}
-th,td{border:1px solid #334155;padding:.3rem;text-align:left}
-.status{margin-top:.5rem;font-size:.9rem;color:#94a3b8}
-.table-wrap{max-height:260px;overflow:auto;border:1px solid #334155;border-radius:8px}
+body {
+  font-family: sans-serif;
+  background: #0f172a;
+  color: #e5e7eb;
+  margin: 0;
+}
+
+header {
+  background: #111827;
+  padding: 1rem;
+  color: #22d3ee;
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+main {
+  padding: 1rem;
+}
+
+section {
+  margin-bottom: 2rem;
+}
+
+.row {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  margin: .5rem 0;
+}
+
+button {
+  padding: .5rem 1rem;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: #22d3ee;
+  color: #000;
+  font-weight: bold;
+}
+button:hover {
+  background: #06b6d4;
+}
+
+select,
+input[type=file],
+textarea {
+  margin: .4rem 0;
+  padding: .4rem;
+  border-radius: 6px;
+  border: 1px solid #334155;
+  background: #1e293b;
+  color: #e5e7eb;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-top: .5rem;
+}
+th, td {
+  border: 1px solid #334155;
+  padding: .3rem;
+  text-align: left;
+}
+
+.status {
+  margin-top: .5rem;
+  font-size: .9rem;
+  color: #94a3b8;
+}
+
+.table-wrap {
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid #334155;
+  border-radius: 8px;
+}
+
+/* 🎨 Размер на графиките */
+canvas {
+  max-width: 400px;
+  max-height: 200px;
+  margin: 1rem auto;
+  display: block;
+  background: #1e293b;
+  border-radius: 8px;
+  padding: .5rem;
+}
