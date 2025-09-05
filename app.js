@@ -1,4 +1,48 @@
 const $ = s=>document.querySelector(s);
+const fmt = new Intl.NumberFormat('bg-BG');
+const fmt2 = new Intl.NumberFormat('bg-BG',{maximumFractionDigits:2});
+let rawRows=[],headers=[],charts=[];
+
+
+// Helpers (no regex needed)
+function toNumber(v){
+if (v==null) return NaN;
+v = String(v).trim();
+if (!v) return NaN;
+v = v.replace('лв.','');
+v = v.replace('лв','');
+v = v.split(' ').join('');
+try { v = v.split(' ').join(''); } catch(_){}
+if (v.includes(',') && !v.includes('.')) v = v.split(',').join('.');
+const lastDot = v.lastIndexOf('.');
+if (lastDot !== -1 && lastDot < v.length-3) v = v.split('.').join('');
+const n = Number(v);
+return Number.isFinite(n) ? n : NaN;
+}
+function linearRegression(xs, ys){
+const n = xs.length; if (n<2) return { m:0, b:0, r2:NaN };
+const sum = a => a.reduce((s,v)=>s+v,0);
+const mean = a => sum(a)/a.length;
+const mx = mean(xs), my = mean(ys);
+let num=0, denx=0, deny=0;
+for (let i=0;i<n;i++){
+const dx = xs[i]-mx, dy = ys[i]-my;
+num += dx*dy; denx += dx*dx; deny += dy*dy;
+}
+const m = num/denx;
+const b = my - m*mx;
+const r = num / Math.sqrt(denx*deny);
+return { m, b, r2: r*r };
+}
+function toNumber(v){
+
+
+const groups = {};
+rawRows.forEach(r=>{ const k = r[cat] || '—'; const v = toNumber(r[num]); if(Number.isFinite(v)) groups[k]=(groups[k]||0)+v; });
+const agg = Object.entries(groups).map(([k,v])=>({[cat]:k, Sum:v})).sort((a,b)=>b.Sum-a.Sum);
+
+
+const wb = XLSX.utils.book_new();
 
 
 const summaryAOA = [
