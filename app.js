@@ -1,20 +1,33 @@
-// ===== app.js (pro UI, full reset + confirm, demo data, agg func, per-chart downloads, forecast summary) =====
+// ===== app.js (pro UI, empty selects by default, smart enabling) =====
 const $ = s => document.querySelector(s);
 const fmt = new Intl.NumberFormat('bg-BG');
 const fmt2 = new Intl.NumberFormat('bg-BG', { maximumFractionDigits: 2 });
 
 let rawRows = [], headers = [], charts = [];
-let fileText = '';         // последно зареденият CSV текст
+let fileText = '';
 let usedDelimiter = 'auto';
 
 // ---------- helpers ----------
-function toast(msg){ const t=$('#toast'); if(!t) return; t.textContent = msg; t.classList.remove('is-hidden'); setTimeout(()=>t.classList.add('is-hidden'), 2500); }
+function toast(msg){ const t=$('#toast'); if(!t) return; t.textContent = msg; t.classList.remove('is-hidden'); setTimeout(()=>t.classList.add('is-hidden'), 2200); }
 function enableAnalysisUI(on){
-  ['catCol','numCol','dateCol','aggFunc','btnAnalyze'].forEach(id=>{ const el=$('#'+id); if(el) el.disabled=!on; });
+  ['catCol','numCol','dateCol','aggFunc'].forEach(id=>{ const el=$('#'+id); if(el) el.disabled=!on; });
+  // не активирай Analyze тук – ще го прави validateControls()
 }
 function enablePostAnalysisUI(on){
   ['btnCharts','btnForecast'].forEach(id=>{ const el=$('#'+id); if(el) el.disabled=!on; });
 }
+function validateControls(){
+  const cat = $('#catCol').value;
+  const num = $('#numCol').value;
+  const ok = !!cat && !!num;
+  $('#btnAnalyze').disabled = !ok;
+  if(!ok){ enablePostAnalysisUI(false); }
+}
+['catCol','numCol','dateCol','aggFunc'].forEach(id=>{
+  const el = $('#'+id);
+  if(el) el.addEventListener('change', validateControls);
+});
+
 function toNumber(v){
   if (v == null) return NaN;
   v = String(v).trim();
@@ -41,10 +54,19 @@ function renderPreview(){
     .map(r => `<tr>${headers.map(h=>`<td>${r[h]}</td>`).join('')}</tr>`).join('');
 }
 function fillSelects(){
-  const opts = headers.map(h=>`<option>${h}</option>`).join('');
-  $('#catCol').innerHTML = opts;
-  $('#numCol').innerHTML = opts;
-  $('#dateCol').innerHTML = '<option></option>' + opts;
+  // добавяме placeholder опции и НЕ избираме автоматично нищо
+  const options = headers.map(h=>`<option value="${h}">${h}</option>`).join('');
+  $('#catCol').innerHTML  = `<option value="">— Избери —</option>${options}`;
+  $('#numCol').innerHTML  = `<option value="">— Избери —</option>${options}`;
+  $('#dateCol').innerHTML = `<option value="">— (по избор) —</option>${options}`;
+  $('#aggFunc').value = 'sum';
+
+  // начално състояние: нищо не е избрано
+  $('#catCol').value = '';
+  $('#numCol').value = '';
+  $('#dateCol').value = '';
+
+  validateControls();
 }
 function kpiCard(label, value){ return `<div class="kpi"><div class="kpi__label">${label}</div><div class="kpi__value">${value}</div></div>`; }
 function setSummary(text){
@@ -70,13 +92,17 @@ function resetUI(){
   $('#report').value = '';
   const st = $('#status'); if (st) st.textContent = 'Избери CSV файл…';
 
-  $('#catCol').innerHTML = ''; $('#numCol').innerHTML = ''; $('#dateCol').innerHTML = '';
+  // селектите – празни и disabled
+  $('#catCol').innerHTML = '<option value="">— Избери —</option>';
+  $('#numCol').innerHTML = '<option value="">— Избери —</option>';
+  $('#dateCol').innerHTML = '<option value="">— (по избор) —</option>';
+  enableAnalysisUI(false);
+  $('#btnAnalyze').disabled = true;
+  enablePostAnalysisUI(false);
+
   const fileInput = $('#file'); if (fileInput) fileInput.value = '';
   const sel = $('#delimiterSel'); if (sel) sel.value = 'auto';
   clearSummary();
-
-  enableAnalysisUI(false);
-  enablePostAnalysisUI(false);
 }
 $('#btnReset').onclick = ()=>{
   const sure = confirm('Сигурен ли си, че искаш да започнеш нова сесия? Всички данни и настройки ще бъдат изчистени.');
@@ -94,10 +120,8 @@ async function parseWithDelimiter(text, delim){
     });
   });
 }
-/** Парсира fileText с избрания разделител. */
 async function parseAndLoad(delimChoice){
   if (!fileText){ const st=$('#status'); if(st) st.textContent='Няма зареден файл.'; return; }
-
   const order = delimChoice === 'auto' ? [',',';','\t','|'] : [delimChoice, ',', ';', '\t', '|'];
   let parsed = null, actualDelim = order[0];
 
@@ -110,7 +134,7 @@ async function parseAndLoad(delimChoice){
 
   if(!parsed || !parsed.meta || !parsed.meta.fields || !parsed.data){
     const st=$('#status'); if(st) st.textContent='Не успях да прочета CSV.'; toast('❗ Неуспешно парсване. Пробвай друг разделител.');
-    enableAnalysisUI(false); enablePostAnalysisUI(false);
+    enableAnalysisUI(false); enablePostAnalysisUI(false); $('#btnAnalyze').disabled = true;
     return;
   }
 
@@ -121,8 +145,10 @@ async function parseAndLoad(delimChoice){
   $('#shape').textContent = `${fmt.format(rawRows.length)}×${headers.length}`;
   const st=$('#status'); if(st) st.textContent = `Успешно заредено. Полета: ${headers.length}, редове: ${rawRows.length}`;
 
-  renderPreview(); fillSelects();
-  enableAnalysisUI(true);
+  renderPreview();
+  fillSelects();           // <- пълни селектите с placeholder най-отгоре
+  enableAnalysisUI(true);  // но Analyze си остава disabled, докато не избереш валидни колони
+  validateControls();
   enablePostAnalysisUI(false);
 }
 
@@ -145,6 +171,7 @@ $('#btnReparse').addEventListener('click', async ()=>{
   if (!fileText){ const st=$('#status'); if(st) st.textContent='Няма зареден файл.'; return; }
   await parseAndLoad(delimSel ? delimSel.value : 'auto');
 });
+
 // Демо данни (50 реда, 8 колони)
 const DEMO = `Дата,Държава,Град,Категория,Продукт,Цена (лв.),Брой продажби,Клиенти
 2019-01,Bulgaria,Sofia,Електроника,Лаптоп,1450,12,10
@@ -215,15 +242,13 @@ $('#btnAnalyze').onclick=()=>{
   const min = n? Math.min(...numeric) : NaN;
   const max = n? Math.max(...numeric) : NaN;
 
-  // KPI
   $('#kpis').innerHTML = [
     kpiCard('Брой записи', fmt.format(n)),
-    kpiCard('Средна стойност', fmt2.format(mean)),
+    kpiCard('Средна стойност', Number.isFinite(mean)?fmt2.format(mean):'—'),
     kpiCard('Std (n-1)', Number.isFinite(sd)?fmt2.format(sd):'—'),
     kpiCard('Мин / Макс', `${Number.isFinite(min)?fmt2.format(min):'—'} / ${Number.isFinite(max)?fmt2.format(max):'—'}`)
   ].join('');
 
-  // Aggregation
   const groups={}; 
   rawRows.forEach(r=>{
     const key = r[cat] || '—';
@@ -234,7 +259,7 @@ $('#btnAnalyze').onclick=()=>{
   const aggRows = Object.entries(groups).map(([k, arr])=>{
     if(aggFunc==='avg') return {k, v: arr.length? arr.reduce((a,b)=>a+b,0)/arr.length : 0};
     if(aggFunc==='count') return {k, v: arr.length};
-    return {k, v: arr.reduce((a,b)=>a+b,0)}; // sum
+    return {k, v: arr.reduce((a,b)=>a+b,0)};
   }).sort((a,b)=>b.v-a.v);
 
   $('#agg thead').innerHTML = `<tr><th>${cat}</th><th>${aggFunc==='sum'?'Сума':aggFunc==='avg'?'Средно':'Брой'}</th></tr>`;
@@ -251,7 +276,7 @@ $('#btnAnalyze').onclick=()=>{
 $('#btnCharts').onclick=()=>{
   if(!window.__analysis){ alert('Първо Изчисли KPI.'); return; }
   charts.forEach(c=>c.destroy()); charts=[];
-  const { agg, cat, aggFunc } = window.__analysis;
+  const { agg, aggFunc } = window.__analysis;
   charts.push(new Chart($('#chart1'),{
     type:'bar',
     data:{labels:agg.map(r=>r.k),datasets:[{label:aggFunc==='sum'?'Сума':aggFunc==='avg'?'Средно':'Брой',data:agg.map(r=>r.v)}]},
@@ -268,7 +293,6 @@ $('#btnCharts').onclick=()=>{
     options:{responsive:true,maintainAspectRatio:false}
   }));
 
-  // бутони под всяка графика
   document.querySelectorAll('[data-download]').forEach(btn=>{
     btn.onclick = ()=>{
       const idx = Number(btn.getAttribute('data-download'))-1;
@@ -282,7 +306,6 @@ $('#btnCharts').onclick=()=>{
   });
   toast('📊 Генерирани са визуализации');
 };
-// сваляне на всички
 document.querySelector('[data-download-all]').onclick = ()=>{
   if(!charts.length) return;
   charts.forEach((ch,i)=>{
@@ -295,7 +318,7 @@ document.querySelector('[data-download-all]').onclick = ()=>{
   });
 };
 
-// ---------- forecast (adds synthesized summary at the bottom) ----------
+// ---------- forecast ----------
 $('#btnForecast').onclick=()=>{
   const st=window.__analysis; if(!st){ alert('Първо Изчисли KPI.'); return; }
   const num=st.num, dateCol=st.date;
@@ -360,3 +383,6 @@ $('#btnExportXlsx').onclick=()=>{
     XLSX.writeFile(wb,'AI-Data-Analysis.xlsx');
   }catch(e){ console.error(e); alert('Грешка при експорт в Excel.'); }
 };
+
+// ---------- init ----------
+resetUI(); // гарантира празни селекти при зареждане
