@@ -1,12 +1,13 @@
+// ===== app.js (robust delimiter handling) =====
 const $ = s => document.querySelector(s);
 const fmt = new Intl.NumberFormat('bg-BG');
 const fmt2 = new Intl.NumberFormat('bg-BG', { maximumFractionDigits: 2 });
 
 let rawRows = [], headers = [], charts = [];
-let fileText = '';       // последно зареденият текст на CSV
+let fileText = '';         // последният зареден CSV текст
 let usedDelimiter = 'auto';
 
-// ===== helpers =====
+// ---------- helpers ----------
 function toNumber(v){
   if (v == null) return NaN;
   v = String(v).trim();
@@ -26,17 +27,6 @@ function linearRegression(xs, ys){
   for(let i=0;i<n;i++){ const dx=xs[i]-mx, dy=ys[i]-my; num+=dx*dy; denx+=dx*dx; deny+=dy*dy; }
   const m = num/denx, b = my - m*mx, r = num/Math.sqrt(denx*deny);
   return { m, b, r2: r*r };
-}
-function sniffDelimiter(t){
-  const first = (t.split(/\r?\n/)[0] || '').trim();
-  const cand = [',',';','\t','|'];
-  let best = { ch: ',', cnt: 0 };
-  for (const ch of cand){
-    const re = ch === '\t' ? /\t/g : new RegExp('\\' + ch,'g');
-    const cnt = (first.match(re) || []).length;
-    if (cnt > best.cnt) best = { ch, cnt };
-  }
-  return best.cnt ? best.ch : ',';
 }
 function renderPreview(){
   $('#preview thead').innerHTML = '<tr>' + headers.map(h=>`<th>${h}</th>`).join('') + '</tr>';
@@ -61,73 +51,87 @@ $('#btnReset').onclick = ()=>{
   fileText = '';
   usedDelimiter = 'auto';
   resetUI();
-  $('#delimiterSel').value = 'auto';
+  if($('#delimiterSel')) $('#delimiterSel').value = 'auto';
 };
 
-// ===== parsing core =====
+// ---------- parsing core ----------
+async function parseWithDelimiter(text, delim){
+  return new Promise(resolve=>{
+    Papa.parse(text, {
+      header: true, skipEmptyLines: true, delimiter: delim,
+      complete: r => resolve(r),
+      error: () => resolve(null)
+    });
+  });
+}
+
+/**
+ * Основна функция: парсира fileText с избрания разделител.
+ * - 'auto' форсира ',' първо (най-често), после fallback към [';', '\t', '|'] ако излезе 1 колона.
+ * - ако потребителят избере конкретен разделител, ползваме него директно; ако пак е 1 колона → правим същия fallback.
+ */
 async function parseAndLoad(delimChoice){
   if (!fileText){ const st=$('#status'); if(st) st.textContent='Няма зареден файл.'; return; }
 
-  const delim = (delimChoice === 'auto') ? sniffDelimiter(fileText) : delimChoice;
-  usedDelimiter = delimChoice;
+  const order = delimChoice === 'auto'
+    ? [',',';','\t','|']  // auto: пробваме поред
+    : [delimChoice, ',', ';', '\t', '|']; // избран: опитай него, после fallback
 
-  // 1) PapaParse
-  const papa = await new Promise(res=>{
-    Papa.parse(fileText, {
-      header: true, skipEmptyLines: true, delimiter: delim,
-      complete: r => res(r),
-      error: () => res(null)
-    });
-  });
+  let parsed = null, actualDelim = order[0];
 
-  let parsed = papa;
-  if(!parsed || !parsed.meta || !(parsed.meta.fields||[]).length){
-    // 2) Ръчен парсинг (fallback)
-    const lines = fileText.split(/\r?\n/).filter(l=>l.trim().length>0);
-    if(lines.length){
-      const clean = s => String(s||'').replace(/^"|"$/g,'').replace(/^'|'$/g,'').trim();
-      const hdrs = lines[0].split(delim).map(clean);
-      const data = lines.slice(1).map(line=>{
-        const cols = line.split(delim).map(clean);
-        const o = {}; hdrs.forEach((h,i)=> o[h] = cols[i]); return o;
-      });
-      parsed = { data, meta: { fields: hdrs, delimiter: delim } };
+  for(const d of order){
+    const res = await parseWithDelimiter(fileText, d);
+    const ok = res && res.meta && Array.isArray(res.meta.fields) && res.meta.fields.length > 1;
+    if (ok){
+      parsed = res; actualDelim = d; break;
     }
   }
 
-  if(!parsed || !parsed.meta || !(parsed.meta.fields||[]).length){
-    const st = $('#status'); if(st) st.textContent = 'Не успях да прочета CSV. Пробвай друг разделител.';
+  // ако все още няма parsed, последно приемаме дори 1 колона, за да покажем ясно състояние
+  if(!parsed){
+    const res = await parseWithDelimiter(fileText, order[0]);
+    parsed = res;
+  }
+
+  if(!parsed || !parsed.meta || !parsed.meta.fields || !parsed.data){
+    const st=$('#status'); if(st) st.textContent='Не успях да прочета CSV.';
     return;
   }
 
-  headers = parsed.meta.fields || [];
-  rawRows = parsed.data || [];
-  $('#sep').textContent = delimChoice === 'auto' ? `auto→${parsed.meta.delimiter||delim}` : parsed.meta.delimiter || delim;
+  headers = parsed.meta.fields;
+  rawRows = parsed.data;
+
+  usedDelimiter = (delimChoice === 'auto') ? `auto→${actualDelim}` : actualDelim;
+  $('#sep').textContent = usedDelimiter;
   $('#shape').textContent = `${fmt.format(rawRows.length)}×${headers.length}`;
-  const st = $('#status'); if(st) st.textContent = `Успешно заредено. Полета: ${headers.length}, редове: ${rawRows.length}`;
+  const st=$('#status'); if(st) st.textContent = `Успешно заредено. Полета: ${headers.length}, редове: ${rawRows.length}`;
 
   renderPreview();
   fillSelects();
 }
 
-// ===== events =====
+// ---------- events ----------
 $('#file').addEventListener('change', async (e)=>{
   const file = e.target.files && e.target.files[0];
   if(!file){ const st=$('#status'); if(st) st.textContent='Не е избран файл.'; return; }
   const st=$('#status'); if(st) st.textContent=`Чета: ${file.name}…`;
   fileText = await new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(String(fr.result||'')); fr.readAsText(file,'UTF-8'); });
-  await parseAndLoad($('#delimiterSel').value);
+  await parseAndLoad($('#delimiterSel') ? $('#delimiterSel').value : 'auto');
 });
-$('#delimiterSel').addEventListener('change', async ()=>{
-  if (!fileText) return;
-  await parseAndLoad($('#delimiterSel').value);
-});
-$('#btnReparse').addEventListener('click', async ()=>{
-  if (!fileText) { const st=$('#status'); if(st) st.textContent='Няма зареден файл.'; return; }
-  await parseAndLoad($('#delimiterSel').value);
-});
+if($('#delimiterSel')){
+  $('#delimiterSel').addEventListener('change', async ()=>{
+    if (!fileText) return;
+    await parseAndLoad($('#delimiterSel').value);
+  });
+}
+if($('#btnReparse')){
+  $('#btnReparse').addEventListener('click', async ()=>{
+    if (!fileText){ const st=$('#status'); if(st) st.textContent='Няма зареден файл.'; return; }
+    await parseAndLoad($('#delimiterSel') ? $('#delimiterSel').value : 'auto');
+  });
+}
 
-// ===== analyze / charts / forecast / export =====
+// ---------- analyze / charts / forecast / export ----------
 $('#btnAnalyze').onclick=()=>{
   const cat=$('#catCol').value, num=$('#numCol').value, date=$('#dateCol').value;
   if(!rawRows.length){ alert('Първо зареди CSV.'); return; }
