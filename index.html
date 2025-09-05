@@ -35,7 +35,7 @@
             <option value="|">Pipe (|)</option>
           </select>
         </label>
-        <button id="btnReparse" title="Препарсирай с избрания разделител">Препарсирай</button>
+        <button id="btnReparse">Препарсирай</button>
       </div>
       <p>Текущ: <span id="sep">auto</span> | <span id="shape">—</span></p>
       <div id="status" class="status">Избери CSV файл…</div>
@@ -63,11 +63,28 @@
 
     <section>
       <h2>4) Визуализации</h2>
-      <button data-download-chart>Свали графика</button>
-      <button data-download-all>Свали всички графики</button>
-      <canvas id="chart1"></canvas>
-      <canvas id="chart2"></canvas>
-      <canvas id="chart3"></canvas>
+
+      <div class="chart-box">
+        <h3>Бар диаграма</h3>
+        <canvas id="chart1"></canvas>
+        <button data-download="1">Свали графика 1</button>
+      </div>
+
+      <div class="chart-box">
+        <h3>Линейна диаграма</h3>
+        <canvas id="chart2"></canvas>
+        <button data-download="2">Свали графика 2</button>
+      </div>
+
+      <div class="chart-box">
+        <h3>Пай диаграма</h3>
+        <canvas id="chart3"></canvas>
+        <button data-download="3">Свали графика 3</button>
+      </div>
+
+      <div class="chart-box">
+        <button data-download-all>Свали всички графики</button>
+      </div>
     </section>
 
     <section>
