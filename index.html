@@ -20,16 +20,31 @@
     <button id="btnExportXlsx">Експорт Excel (XLSX)</button>
     <button id="btnReset">Нова сесия</button>
   </header>
+
   <main>
     <section>
       <h2>1) Зареди данни</h2>
-      <input type="file" id="file" accept=".csv,.cvs,.tsv,.txt" />
-      <p>Разделител: <span id="sep">auto</span> | <span id="shape">—</span></p>
+      <input type="file" id="file" accept=".csv,.tsv,.txt" />
+      <div class="row">
+        <label>Разделител:
+          <select id="delimiterSel">
+            <option value="auto" selected>Auto</option>
+            <option value=",">Запетая (,)</option>
+            <option value=";">Точка и запетая (;)</option>
+            <option value="\t">Tab</option>
+            <option value="|">Pipe (|)</option>
+          </select>
+        </label>
+        <button id="btnReparse" title="Препарсирай с избрания разделител">Препарсирай</button>
+      </div>
+      <p>Текущ: <span id="sep">auto</span> | <span id="shape">—</span></p>
       <div id="status" class="status">Избери CSV файл…</div>
+
       <div class="table-wrap">
         <table id="preview"><thead></thead><tbody></tbody></table>
       </div>
     </section>
+
     <section>
       <h2>2) Настройки</h2>
       <label>Категориална: <select id="catCol"></select></label>
@@ -39,11 +54,13 @@
       <button id="btnCharts">Визуализации</button>
       <button id="btnForecast">Прогноза</button>
     </section>
+
     <section>
       <h2>3) Статистики</h2>
       <div id="kpis"></div>
       <table id="agg"><thead></thead><tbody></tbody></table>
     </section>
+
     <section>
       <h2>4) Визуализации</h2>
       <button data-download-chart>Свали графика</button>
@@ -52,6 +69,7 @@
       <canvas id="chart2"></canvas>
       <canvas id="chart3"></canvas>
     </section>
+
     <section>
       <h2>5) Автоматичен отчет</h2>
       <textarea id="report" rows="10"></textarea>
