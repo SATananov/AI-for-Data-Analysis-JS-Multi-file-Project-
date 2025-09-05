@@ -11,86 +11,161 @@
   <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js"></script>
   <!-- app -->
-  <script defer src="./app.js"></script>
+  <script defer src="./app.js?v=pro"></script>
 </head>
 <body>
-  <header>
-    <h1>AI for Data Analysis (JS)</h1>
-    <button id="btnExport">Експорт отчет</button>
-    <button id="btnExportXlsx">Експорт Excel (XLSX)</button>
-    <button id="btnReset">Нова сесия</button>
+  <header class="app-header">
+    <div class="container">
+      <h1>AI for Data Analysis (JS)</h1>
+      <div class="header-actions">
+        <button id="btnExport" class="btn primary" disabled>Експорт отчет</button>
+        <button id="btnExportXlsx" class="btn" disabled>Експорт Excel</button>
+        <button id="btnReset" class="btn danger">Нова сесия</button>
+      </div>
+    </div>
   </header>
 
-  <main>
-    <section>
-      <h2>1) Зареди данни</h2>
-      <input type="file" id="file" accept=".csv,.tsv,.txt" />
-      <div class="row">
-        <label>Разделител:
-          <select id="delimiterSel">
-            <option value="auto" selected>Auto</option>
-            <option value=",">Запетая (,)</option>
-            <option value=";">Точка и запетая (;)</option>
-            <option value="\t">Tab</option>
-            <option value="|">Pipe (|)</option>
-          </select>
-        </label>
-        <button id="btnReparse">Препарсирай</button>
+  <main class="container app-grid">
+    <!-- КАРТА 1: Данни -->
+    <section class="card">
+      <div class="card-head">
+        <h2>1) Данни</h2>
+        <p class="muted">Качи CSV файл и избери правилен разделител, ако е нужно.</p>
       </div>
-      <p>Текущ: <span id="sep">auto</span> | <span id="shape">—</span></p>
-      <div id="status" class="status">Избери CSV файл…</div>
+      <div class="card-body">
+        <div class="row">
+          <input type="file" id="file" accept=".csv,.tsv,.txt" />
+          <label>Разделител:
+            <select id="delimiterSel">
+              <option value="auto" selected>Auto</option>
+              <option value=",">Запетая (,)</option>
+              <option value=";">Точка и запетая (;)</option>
+              <option value="\t">Tab</option>
+              <option value="|">Pipe (|)</option>
+            </select>
+          </label>
+          <button id="btnReparse" class="btn" disabled>Препарсирай</button>
+        </div>
 
-      <div class="table-wrap">
-        <table id="preview"><thead></thead><tbody></tbody></table>
-      </div>
-    </section>
+        <div class="meta">
+          <span>Текущ разделител: <strong id="sep">auto</strong></span>
+          <span>Форма: <strong id="shape">—</strong></span>
+          <span id="status" class="muted">Избери CSV файл…</span>
+        </div>
 
-    <section>
-      <h2>2) Настройки</h2>
-      <label>Категориална: <select id="catCol"></select></label>
-      <label>Числова: <select id="numCol"></select></label>
-      <label>Дата: <select id="dateCol"></select></label>
-      <button id="btnAnalyze">Анализирай</button>
-      <button id="btnCharts">Визуализации</button>
-      <button id="btnForecast">Прогноза</button>
-    </section>
-
-    <section>
-      <h2>3) Статистики</h2>
-      <div id="kpis"></div>
-      <table id="agg"><thead></thead><tbody></tbody></table>
-    </section>
-
-    <section>
-      <h2>4) Визуализации</h2>
-
-      <div class="chart-box">
-        <h3>Бар диаграма</h3>
-        <canvas id="chart1"></canvas>
-        <button data-download="1">Свали графика 1</button>
-      </div>
-
-      <div class="chart-box">
-        <h3>Линейна диаграма</h3>
-        <canvas id="chart2"></canvas>
-        <button data-download="2">Свали графика 2</button>
-      </div>
-
-      <div class="chart-box">
-        <h3>Пай диаграма</h3>
-        <canvas id="chart3"></canvas>
-        <button data-download="3">Свали графика 3</button>
-      </div>
-
-      <div class="chart-box">
-        <button data-download-all>Свали всички графики</button>
+        <div class="table-wrap">
+          <table id="preview">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+          <div id="emptyPreview" class="empty">
+            Няма данни за преглед. Качи CSV, за да видиш първите редове.
+          </div>
+        </div>
       </div>
     </section>
 
-    <section>
-      <h2>5) Автоматичен отчет</h2>
-      <textarea id="report" rows="10"></textarea>
+    <!-- КАРТА 2: Настройки -->
+    <section class="card">
+      <div class="card-head">
+        <h2>2) Настройки</h2>
+        <p class="muted">Избери по кои колони да се групира и измерва.</p>
+      </div>
+      <div class="card-body">
+        <div class="row wrap">
+          <label>Категориална
+            <select id="catCol" disabled></select>
+          </label>
+          <label>Числова
+            <select id="numCol" disabled></select>
+          </label>
+          <label>Дата (по избор)
+            <select id="dateCol" disabled></select>
+          </label>
+        </div>
+        <div class="row">
+          <button id="btnAnalyze" class="btn primary" disabled>Анализирай</button>
+          <button id="btnCharts" class="btn" disabled>Визуализации</button>
+          <button id="btnForecast" class="btn" disabled>Прогноза</button>
+        </div>
+        <small class="hint">Съвет: обикновено „Категория“ или „Продукт“ за Категориална, а „Брой продажби“/„Клиенти“ за Числова.</small>
+      </div>
+    </section>
+
+    <!-- КАРТА 3: KPI & Агрегации -->
+    <section class="card">
+      <div class="card-head">
+        <h2>3) Резултати</h2>
+        <p class="muted">Ключови показатели и групирани суми по избраната категория.</p>
+      </div>
+      <div class="card-body">
+        <div class="kpi-grid" id="kpis">
+          <!-- KPI ще се вставят тук -->
+        </div>
+        <div class="table-wrap">
+          <table id="agg">
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+          <div id="emptyAgg" class="empty">Натисни „Анализирай“, за да видиш резултати.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- КАРТА 4: Визуализации -->
+    <section class="card">
+      <div class="card-head">
+        <h2>4) Визуализации</h2>
+        <p class="muted">Графиките се генерират по текущите настройки.</p>
+      </div>
+      <div class="card-body charts-area">
+        <div class="chart-box">
+          <h3 id="titleChart1">Бар диаграма</h3>
+          <canvas id="chart1"></canvas>
+          <button data-download="1" class="btn small" disabled>Свали графика 1</button>
+        </div>
+
+        <div class="chart-box">
+          <h3 id="titleChart2">Линейна диаграма</h3>
+          <canvas id="chart2"></canvas>
+          <button data-download="2" class="btn small" disabled>Свали графика 2</button>
+        </div>
+
+        <div class="chart-box">
+          <h3 id="titleChart3">Пай диаграма</h3>
+          <canvas id="chart3"></canvas>
+          <button data-download="3" class="btn small" disabled>Свали графика 3</button>
+        </div>
+
+        <div class="chart-box">
+          <button data-download-all class="btn" disabled>Свали всички графики</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- КАРТА 5: Отчет -->
+    <section class="card">
+      <div class="card-head">
+        <h2>5) Отчет</h2>
+        <p class="muted">Автоматичен текстов отчет. Можеш да го редактираш преди експорт.</p>
+      </div>
+      <div class="card-body">
+        <textarea id="report" rows="10" placeholder="Тук ще се появи автоматичният отчет…" disabled></textarea>
+      </div>
+    </section>
+
+    <!-- Синтезиран извод от Прогнозата -->
+    <section id="forecastSummary" class="card hidden">
+      <div class="card-head">
+        <h2>Синтезиран извод</h2>
+      </div>
+      <div class="card-body">
+        <p id="forecastSummaryText" class="summary"></p>
+      </div>
     </section>
   </main>
+
+  <!-- Toast -->
+  <div id="toast" class="toast hidden"></div>
 </body>
 </html>
