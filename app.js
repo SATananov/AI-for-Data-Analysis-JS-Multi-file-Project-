@@ -1,4 +1,4 @@
-// ===== app.js (full reset + confirm, per-chart downloads, forecast summary at bottom) =====
+// ===== app.js (pro UI, full reset + confirm, demo data, agg func, per-chart downloads, forecast summary) =====
 const $ = s => document.querySelector(s);
 const fmt = new Intl.NumberFormat('bg-BG');
 const fmt2 = new Intl.NumberFormat('bg-BG', { maximumFractionDigits: 2 });
@@ -8,6 +8,13 @@ let fileText = '';         // последно зареденият CSV текс
 let usedDelimiter = 'auto';
 
 // ---------- helpers ----------
+function toast(msg){ const t=$('#toast'); if(!t) return; t.textContent = msg; t.classList.remove('is-hidden'); setTimeout(()=>t.classList.add('is-hidden'), 2500); }
+function enableAnalysisUI(on){
+  ['catCol','numCol','dateCol','aggFunc','btnAnalyze'].forEach(id=>{ const el=$('#'+id); if(el) el.disabled=!on; });
+}
+function enablePostAnalysisUI(on){
+  ['btnCharts','btnForecast'].forEach(id=>{ const el=$('#'+id); if(el) el.disabled=!on; });
+}
 function toNumber(v){
   if (v == null) return NaN;
   v = String(v).trim();
@@ -34,58 +41,25 @@ function renderPreview(){
     .map(r => `<tr>${headers.map(h=>`<td>${r[h]}</td>`).join('')}</tr>`).join('');
 }
 function fillSelects(){
-  $('#catCol').innerHTML = headers.map(h=>`<option>${h}</option>`).join('');
-  $('#numCol').innerHTML = headers.map(h=>`<option>${h}</option>`).join('');
-  $('#dateCol').innerHTML = '<option></option>' + headers.map(h=>`<option>${h}</option>`).join('');
+  const opts = headers.map(h=>`<option>${h}</option>`).join('');
+  $('#catCol').innerHTML = opts;
+  $('#numCol').innerHTML = opts;
+  $('#dateCol').innerHTML = '<option></option>' + opts;
 }
-function ensureSummaryBox(){
-  let box = document.getElementById('forecastSummary');
-  if(!box){
-    box = document.createElement('div');
-    box.id = 'forecastSummary';
-    box.style.margin = '2rem 0';
-    box.style.padding = '1rem';
-    box.style.border = '1px solid #334155';
-    box.style.borderRadius = '8px';
-    box.style.background = '#0b1324';
-    const h = document.createElement('h3');
-    h.textContent = 'Синтезиран извод';
-    h.style.color = '#22d3ee';
-    h.style.margin = '0 0 .5rem 0';
-    const p = document.createElement('p');
-    p.id = 'forecastSummaryText';
-    p.style.whiteSpace = 'pre-wrap';
-    p.style.margin = 0;
-    box.appendChild(h);
-    box.appendChild(p);
-    // сложи го най-отдолу в <main>
-    const main = document.querySelector('main') || document.body;
-    main.appendChild(box);
-  }
-  return box;
-}
+function kpiCard(label, value){ return `<div class="kpi"><div class="kpi__label">${label}</div><div class="kpi__value">${value}</div></div>`; }
 function setSummary(text){
-  const box = ensureSummaryBox();
-  const p = document.getElementById('forecastSummaryText');
-  if(p){ p.textContent = text; }
+  const box = $('#forecastSummary'); const p = $('#forecastSummaryText');
+  if(box && p){ box.classList.remove('is-hidden'); p.textContent = text; }
 }
-function clearSummary(){
-  const box = document.getElementById('forecastSummary');
-  if(box) box.remove();
-}
+function clearSummary(){ const box=$('#forecastSummary'); if(box){ box.classList.add('is-hidden'); $('#forecastSummaryText').textContent=''; }}
 
 // ---------- FULL RESET ----------
 function resetUI(){
-  // вътрешно състояние
-  rawRows = [];
-  headers = [];
-  charts.forEach(c=>c && c.destroy());
-  charts = [];
-  fileText = '';
-  usedDelimiter = 'auto';
+  rawRows = []; headers = [];
+  charts.forEach(c=>c && c.destroy()); charts = [];
+  fileText = ''; usedDelimiter = 'auto';
   window.__analysis = undefined;
 
-  // HTML елементи
   $('#shape').textContent = '—';
   $('#sep').textContent = 'auto';
   $('#preview thead').innerHTML = '';
@@ -94,27 +68,16 @@ function resetUI(){
   $('#agg tbody').innerHTML = '';
   $('#kpis').innerHTML = '';
   $('#report').value = '';
+  const st = $('#status'); if (st) st.textContent = 'Избери CSV файл…';
 
-  const st = $('#status');
-  if (st) st.textContent = 'Избери CSV файл…';
-
-  // селектите се изпразват
-  $('#catCol').innerHTML = '';
-  $('#numCol').innerHTML = '';
-  $('#dateCol').innerHTML = '';
-
-  // файл инпутът се нулира
-  const fileInput = $('#file');
-  if (fileInput) fileInput.value = '';
-
-  // delimiter селектор на auto
-  const sel = $('#delimiterSel');
-  if (sel) sel.value = 'auto';
-
-  // махаме синтезирания извод
+  $('#catCol').innerHTML = ''; $('#numCol').innerHTML = ''; $('#dateCol').innerHTML = '';
+  const fileInput = $('#file'); if (fileInput) fileInput.value = '';
+  const sel = $('#delimiterSel'); if (sel) sel.value = 'auto';
   clearSummary();
+
+  enableAnalysisUI(false);
+  enablePostAnalysisUI(false);
 }
-// Потвърждение при "Нова сесия"
 $('#btnReset').onclick = ()=>{
   const sure = confirm('Сигурен ли си, че искаш да започнеш нова сесия? Всички данни и настройки ще бъдат изчистени.');
   if (!sure) return;
@@ -131,18 +94,11 @@ async function parseWithDelimiter(text, delim){
     });
   });
 }
-/**
- * Парсира fileText с избрания разделител.
- * - 'auto' пробва последователно: ',' -> ';' -> '\t' -> '|'
- * - ако е избран конкретен знак, опитва него, после fallback към останалите, докато намери поне 2 колони.
- */
+/** Парсира fileText с избрания разделител. */
 async function parseAndLoad(delimChoice){
   if (!fileText){ const st=$('#status'); if(st) st.textContent='Няма зареден файл.'; return; }
 
-  const order = delimChoice === 'auto'
-    ? [',',';','\t','|']
-    : [delimChoice, ',', ';', '\t', '|'];
-
+  const order = delimChoice === 'auto' ? [',',';','\t','|'] : [delimChoice, ',', ';', '\t', '|'];
   let parsed = null, actualDelim = order[0];
 
   for(const d of order){
@@ -150,27 +106,24 @@ async function parseAndLoad(delimChoice){
     const ok = res && res.meta && Array.isArray(res.meta.fields) && res.meta.fields.length > 1;
     if (ok){ parsed = res; actualDelim = d; break; }
   }
-  // последен шанс: приемаме и 1 колона, за да покажем състояние
-  if(!parsed){
-    const res = await parseWithDelimiter(fileText, order[0]);
-    parsed = res;
-  }
+  if(!parsed){ parsed = await parseWithDelimiter(fileText, order[0]); }
 
   if(!parsed || !parsed.meta || !parsed.meta.fields || !parsed.data){
-    const st=$('#status'); if(st) st.textContent='Не успях да прочета CSV.';
+    const st=$('#status'); if(st) st.textContent='Не успях да прочета CSV.'; toast('❗ Неуспешно парсване. Пробвай друг разделител.');
+    enableAnalysisUI(false); enablePostAnalysisUI(false);
     return;
   }
 
   headers = parsed.meta.fields;
   rawRows = parsed.data;
 
-  usedDelimiter = (delimChoice === 'auto') ? `auto→${actualDelim}` : actualDelim;
-  $('#sep').textContent = usedDelimiter;
+  $('#sep').textContent = (delimChoice === 'auto') ? `auto→${actualDelim}` : actualDelim;
   $('#shape').textContent = `${fmt.format(rawRows.length)}×${headers.length}`;
   const st=$('#status'); if(st) st.textContent = `Успешно заредено. Полета: ${headers.length}, редове: ${rawRows.length}`;
 
-  renderPreview();
-  fillSelects();
+  renderPreview(); fillSelects();
+  enableAnalysisUI(true);
+  enablePostAnalysisUI(false);
 }
 
 // ---------- events ----------
@@ -188,42 +141,132 @@ if(delimSel){
     await parseAndLoad(delimSel.value);
   });
 }
-const btnReparse = $('#btnReparse');
-if(btnReparse){
-  btnReparse.addEventListener('click', async ()=>{
-    if (!fileText){ const st=$('#status'); if(st) st.textContent='Няма зареден файл.'; return; }
-    await parseAndLoad(delimSel ? delimSel.value : 'auto');
-  });
-}
+$('#btnReparse').addEventListener('click', async ()=>{
+  if (!fileText){ const st=$('#status'); if(st) st.textContent='Няма зареден файл.'; return; }
+  await parseAndLoad(delimSel ? delimSel.value : 'auto');
+});
+// Демо данни (50 реда, 8 колони)
+const DEMO = `Дата,Държава,Град,Категория,Продукт,Цена (лв.),Брой продажби,Клиенти
+2019-01,Bulgaria,Sofia,Електроника,Лаптоп,1450,12,10
+2019-01,Bulgaria,Plovdiv,Електроника,Мишка,35,80,60
+2019-01,Bulgaria,Varna,Електроника,Клавиатура,75,40,35
+2019-02,Bulgaria,Sofia,Мебели,Диван,750,6,5
+2019-02,Bulgaria,Burgas,Мебели,Стол,120,20,18
+2019-02,Bulgaria,Plovdiv,Мебели,Бюро,290,10,8
+2019-03,Bulgaria,Sofia,Битова техника,Хладилник,1150,5,5
+2019-03,Bulgaria,Varna,Битова техника,Кафемашина,320,15,12
+2019-03,Bulgaria,Burgas,Битова техника,Микровълнова печка,270,12,10
+2019-04,Bulgaria,Sofia,Електроника,Смартфон,890,25,20
+2019-04,Bulgaria,Plovdiv,Електроника,Таблет,650,18,15
+2019-04,Bulgaria,Varna,Електроника,Слушалки,120,55,50
+2019-05,Bulgaria,Sofia,Мебели,Легло,650,5,4
+2019-05,Bulgaria,Burgas,Мебели,Гардероб,850,3,3
+2019-05,Bulgaria,Varna,Мебели,Шкаф,400,7,6
+2019-06,Bulgaria,Sofia,Битова техника,Пералня,990,4,4
+2019-06,Bulgaria,Plovdiv,Битова техника,Фурна,560,8,7
+2019-06,Bulgaria,Varna,Битова техника,Прахосмукачка,380,10,9
+2019-07,Bulgaria,Sofia,Електроника,Рутер,150,28,25
+2019-07,Bulgaria,Plovdiv,Електроника,Флашка,25,150,100
+2019-07,Bulgaria,Burgas,Електроника,Външен хард диск,180,20,18
+2019-08,Bulgaria,Sofia,Мебели,Килим,220,10,9
+2019-08,Bulgaria,Varna,Мебели,Кухненска маса,560,4,4
+2019-08,Bulgaria,Plovdiv,Мебели,Фотьойл,480,6,6
+2019-09,Bulgaria,Sofia,Битова техника,Блендер,95,15,14
+2019-09,Bulgaria,Varna,Битова техника,Сокоизстисквачка,220,12,11
+2019-09,Bulgaria,Burgas,Битова техника,Климатиk,1250,3,3
+2019-10,Bulgaria,Sofia,Електроника,Дрон,1200,5,4
+2019-10,Bulgaria,Plovdiv,Електроника,Фотоапарат,1350,4,4
+2019-10,Bulgaria,Varna,Електроника,Конзола за игри,1100,6,5
+2019-11,Bulgaria,Sofia,Мебели,Геймърски стол,430,8,7
+2019-11,Bulgaria,Plovdiv,Мебели,Етажерка,180,7,6
+2019-11,Bulgaria,Burgas,Мебели,Огледало,200,5,4
+2019-12,Bulgaria,Sofia,Битова техника,Електрическа кана,65,25,22
+2019-12,Bulgaria,Plovdiv,Битова техника,Машина за хляб,230,6,6
+2019-12,Bulgaria,Varna,Битова техника,Абажур,80,10,9
+2020-01,Bulgaria,Sofia,Електроника,Смарт часовник,390,12,11
+2020-01,Bulgaria,Plovdiv,Електроника,Проектор,980,4,4
+2020-01,Bulgaria,Burgas,Електроника,Уеб камера,75,30,25
+2020-02,Bulgaria,Sofia,Мебели,Писалище,330,5,5
+2020-02,Bulgaria,Varna,Мебели,Трапезна маса,720,3,3
+2020-02,Bulgaria,Plovdiv,Мебели,Шкаф за обувки,260,4,4
+2020-03,Bulgaria,Sofia,Битова техника,Прахоуловител,150,8,7
+2020-03,Bulgaria,Burgas,Битова техника,Уред за гладене,130,9,8
+2020-03,Bulgaria,Varna,Битова техника,Кафемелачка,180,7,6
+2020-04,Bulgaria,Sofia,Електроника,Колонки,210,15,14
+2020-04,Bulgaria,Plovdiv,Електроника,Лампа,95,12,11
+2020-04,Bulgaria,Varna,Електроника,Абсорбатор,340,6,6`;
+$('#btnDemo').addEventListener('click', async ()=>{
+  resetUI();
+  const st=$('#status'); if(st) st.textContent='Зареждам демо данни…';
+  fileText = DEMO;
+  await parseAndLoad('auto');
+  toast('✅ Заредени са демо данни');
+});
 
 // ---------- analyze ----------
 $('#btnAnalyze').onclick=()=>{
-  const cat=$('#catCol').value, num=$('#numCol').value, date=$('#dateCol').value;
+  const cat=$('#catCol').value, num=$('#numCol').value, date=$('#dateCol').value, aggFunc=$('#aggFunc').value;
   if(!rawRows.length){ alert('Първо зареди CSV.'); return; }
   if(!cat || !num){ alert('Избери категориална и числова колона.'); return; }
 
-  const vals=rawRows.map(r=>toNumber(r[num])).filter(Number.isFinite);
-  const n=vals.length, mean=n?vals.reduce((a,b)=>a+b,0)/n:NaN;
-  const sd = n>1? Math.sqrt(vals.reduce((s,v)=>s+Math.pow(v-mean,2),0)/(n-1)) : NaN;
-  $('#kpis').innerHTML=`<p>Брой: ${n}</p><p>Средна: ${fmt2.format(mean)}</p><p>Std: ${fmt2.format(sd)}</p>`;
+  const numeric = rawRows.map(r=>toNumber(r[num])).filter(Number.isFinite);
+  const n=numeric.length, mean=n?numeric.reduce((a,b)=>a+b,0)/n:NaN;
+  const sd = n>1? Math.sqrt(numeric.reduce((s,v)=>s+Math.pow(v-mean,2),0)/(n-1)) : NaN;
+  const min = n? Math.min(...numeric) : NaN;
+  const max = n? Math.max(...numeric) : NaN;
 
-  const groups={}; rawRows.forEach(r=>{ const k=r[cat]||'—'; const v=toNumber(r[num]); if(Number.isFinite(v)) groups[k]=(groups[k]||0)+v; });
-  const agg=Object.entries(groups).map(([k,v])=>({k,v})).sort((a,b)=>b.v-a.v);
-  $('#agg thead').innerHTML='<tr><th>'+cat+'</th><th>Сума</th></tr>';
-  $('#agg tbody').innerHTML=agg.map(r=>`<tr><td>${r.k}</td><td>${fmt2.format(r.v)}</td></tr>`).join('');
-  $('#report').value=`Общо ${n} реда. Средна стойност: ${fmt2.format(mean)}. Най-висока категория: ${agg[0]?.k ?? '—'}.`;
+  // KPI
+  $('#kpis').innerHTML = [
+    kpiCard('Брой записи', fmt.format(n)),
+    kpiCard('Средна стойност', fmt2.format(mean)),
+    kpiCard('Std (n-1)', Number.isFinite(sd)?fmt2.format(sd):'—'),
+    kpiCard('Мин / Макс', `${Number.isFinite(min)?fmt2.format(min):'—'} / ${Number.isFinite(max)?fmt2.format(max):'—'}`)
+  ].join('');
 
-  window.__analysis={agg,cat,num,date};
+  // Aggregation
+  const groups={}; 
+  rawRows.forEach(r=>{
+    const key = r[cat] || '—';
+    const val = toNumber(r[num]);
+    if(!groups[key]) groups[key] = [];
+    if(Number.isFinite(val)) groups[key].push(val);
+  });
+  const aggRows = Object.entries(groups).map(([k, arr])=>{
+    if(aggFunc==='avg') return {k, v: arr.length? arr.reduce((a,b)=>a+b,0)/arr.length : 0};
+    if(aggFunc==='count') return {k, v: arr.length};
+    return {k, v: arr.reduce((a,b)=>a+b,0)}; // sum
+  }).sort((a,b)=>b.v-a.v);
+
+  $('#agg thead').innerHTML = `<tr><th>${cat}</th><th>${aggFunc==='sum'?'Сума':aggFunc==='avg'?'Средно':'Брой'}</th></tr>`;
+  $('#agg tbody').innerHTML = aggRows.map(r=>`<tr><td>${r.k}</td><td>${fmt2.format(r.v)}</td></tr>`).join('');
+
+  $('#report').value = `Общо ${n} числови стойности.\nФункция: ${aggFunc.toUpperCase()} по "${num}".\nВодеща категория: ${aggRows[0]?.k ?? '—'} (${fmt2.format(aggRows[0]?.v ?? 0)}).`;
+
+  window.__analysis={agg:aggRows,cat,num,date,aggFunc};
+  enablePostAnalysisUI(true);
+  toast('✅ KPI и агрегация обновени');
 };
 
 // ---------- charts ----------
 $('#btnCharts').onclick=()=>{
-  if(!window.__analysis){ alert('Първо Анализирай.'); return; }
+  if(!window.__analysis){ alert('Първо Изчисли KPI.'); return; }
   charts.forEach(c=>c.destroy()); charts=[];
-  const { agg } = window.__analysis;
-  charts.push(new Chart($('#chart1'),{type:'bar',data:{labels:agg.map(r=>r.k),datasets:[{label:'Сума',data:agg.map(r=>r.v)}]}}));
-  charts.push(new Chart($('#chart2'),{type:'line',data:{labels:agg.map(r=>r.k),datasets:[{label:'Сума',data:agg.map(r=>r.v)}]}}));
-  charts.push(new Chart($('#chart3'),{type:'pie',data:{labels:agg.map(r=>r.k),datasets:[{data:agg.map(r=>r.v)}]}}));
+  const { agg, cat, aggFunc } = window.__analysis;
+  charts.push(new Chart($('#chart1'),{
+    type:'bar',
+    data:{labels:agg.map(r=>r.k),datasets:[{label:aggFunc==='sum'?'Сума':aggFunc==='avg'?'Средно':'Брой',data:agg.map(r=>r.v)}]},
+    options:{responsive:true,maintainAspectRatio:false}
+  }));
+  charts.push(new Chart($('#chart2'),{
+    type:'line',
+    data:{labels:agg.map(r=>r.k),datasets:[{label:aggFunc==='sum'?'Сума':aggFunc==='avg'?'Средно':'Брой',data:agg.map(r=>r.v)}]},
+    options:{responsive:true,maintainAspectRatio:false}
+  }));
+  charts.push(new Chart($('#chart3'),{
+    type:'pie',
+    data:{labels:agg.map(r=>r.k),datasets:[{data:agg.map(r=>r.v)}]},
+    options:{responsive:true,maintainAspectRatio:false}
+  }));
 
   // бутони под всяка графика
   document.querySelectorAll('[data-download]').forEach(btn=>{
@@ -237,26 +280,24 @@ $('#btnCharts').onclick=()=>{
       a.click();
     };
   });
+  toast('📊 Генерирани са визуализации');
 };
 // сваляне на всички
-const allBtn = document.querySelector('[data-download-all]');
-if(allBtn){
-  allBtn.onclick = ()=>{
-    if(!charts.length) return;
-    charts.forEach((ch,i)=>{
-      if(!ch) return;
-      const url=ch.toBase64Image();
-      const a=document.createElement('a');
-      a.href=url;
-      a.download=`chart_${i+1}.png`;
-      a.click();
-    });
-  };
-}
+document.querySelector('[data-download-all]').onclick = ()=>{
+  if(!charts.length) return;
+  charts.forEach((ch,i)=>{
+    if(!ch) return;
+    const url=ch.toBase64Image();
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=`chart_${i+1}.png`;
+    a.click();
+  });
+};
 
 // ---------- forecast (adds synthesized summary at the bottom) ----------
 $('#btnForecast').onclick=()=>{
-  const st=window.__analysis; if(!st){ alert('Първо Анализирай.'); return; }
+  const st=window.__analysis; if(!st){ alert('Първо Изчисли KPI.'); return; }
   const num=st.num, dateCol=st.date;
   let series=[];
   if(dateCol){
@@ -271,26 +312,23 @@ $('#btnForecast').onclick=()=>{
   const { m,b,r2 } = linearRegression(xs,ys);
   const nextX = xs[xs.length-1]+1; const forecast = m*nextX+b;
 
-  // добавяме детайлен текст в отчета (както досега)
   const line = `\n\nПрогноза (линейна регресия) по "${num}":\n• Следваща стойност: ${fmt2.format(forecast)}\n• m: ${m.toFixed(4)}, b: ${b.toFixed(4)}, R²: ${Number.isFinite(r2)?r2.toFixed(3):'N/A'}` + (dateCol?`\n• Времева колона: ${dateCol}`:'\n• Използван е индекс');
   $('#report').value = ($('#report').value ? $('#report').value + line : line);
 
-  // СИНТЕЗИРАН ИЗВОД НАЙ-ОТДОЛУ
-  // тренд според наклона
   const trend = Math.abs(m) < 1e-6 ? 'равномерен' : (m > 0 ? 'възходящ' : 'низходящ');
   const summary = `Прогноза за "${num}": следваща стойност ≈ ${fmt2.format(forecast)}. Тренд: ${trend}. Надеждност (R²): ${Number.isFinite(r2)?r2.toFixed(3):'N/A'}.`;
   setSummary(summary);
 
-  // чертаем регресионна линия върху chart2
   try {
     if(charts[1]) charts[1].destroy();
     const labels = xs.map(String), fit = xs.map(x=>m*x+b);
     charts[1] = new Chart($('#chart2'),{
       type:'line',
       data:{ labels, datasets:[{label:'Стойности',data:ys,pointRadius:2},{label:'Регресия',data:fit,pointRadius:0}]},
-      options:{ responsive:true, scales:{ y:{ beginAtZero:false } } }
+      options:{ responsive:true, scales:{ y:{ beginAtZero:false } }, maintainAspectRatio:false }
     });
   } catch(_){}
+  toast('📈 Прогнозата е изчислена');
 };
 
 // ---------- export ----------
