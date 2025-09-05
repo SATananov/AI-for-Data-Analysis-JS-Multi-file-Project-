@@ -1,58 +1,61 @@
 <!DOCTYPE html>
 <html lang="bg">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>AI for Data Analysis (JS)</title>
-<link rel="stylesheet" href="./styles.css" />
-<script defer src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js"></script>
-<script defer src="./app.js"></script>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI for Data Analysis (JS)</title>
+  <link rel="stylesheet" href="./styles.css" />
+  <!-- библиотеки -->
+  <script defer src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.19.3/dist/xlsx.full.min.js"></script>
+  <!-- app -->
+  <script defer src="./app.js"></script>
 </head>
 <body>
-<header>
-<h1>AI for Data Analysis (JS)</h1>
-<button id="btnExport">Експорт отчет</button>
-<button id="btnExportXlsx">Експорт Excel (XLSX)</button>
-<button id="btnReset">Нова сесия</button>
-</header>
-<main>
-<section>
-<h2>1) Зареди данни</h2>
-<input type="file" id="file" accept=".csv,.tsv,.txt" />
-<p>Разделител: <span id="sep">auto</span> | <span id="shape">—</span></p>
-<div id="status" class="status">Избери CSV файл…</div>
-<div class="table-wrap">
-<table id="preview"><thead></thead><tbody></tbody></table>
-</div>
-</section>
-<section>
-<h2>2) Настройки</h2>
-<label>Категориална: <select id="catCol"></select></label>
-<label>Числова: <select id="numCol"></select></label>
-<label>Дата: <select id="dateCol"></select></label>
-<button id="btnAnalyze">Анализирай</button>
-<button id="btnCharts">Визуализации</button>
-<button id="btnForecast">Прогноза</button>
-</section>
-<section>
-<h2>3) Статистики</h2>
-<div id="kpis"></div>
-<table id="agg"><thead></thead><tbody></tbody></table>
-</section>
-<section>
-<h2>4) Визуализации</h2>
-<button data-download-chart>Свали графика</button>
-<button data-download-all>Свали всички графики</button>
-<canvas id="chart1"></canvas>
-<canvas id="chart2"></canvas>
-<canvas id="chart3"></canvas>
-</section>
-<section>
-<h2>5) Автоматичен отчет</h2>
-<textarea id="report" rows="10"></textarea>
-</section>
-</main>
+  <header>
+    <h1>AI for Data Analysis (JS)</h1>
+    <button id="btnExport">Експорт отчет</button>
+    <button id="btnExportXlsx">Експорт Excel (XLSX)</button>
+    <button id="btnReset">Нова сесия</button>
+  </header>
+  <main>
+    <section>
+      <h2>1) Зареди данни</h2>
+      <input type="file" id="file" accept=".csv,.cvs,.tsv,.txt" />
+      <p>Разделител: <span id="sep">auto</span> | <span id="shape">—</span></p>
+      <div id="status" class="status">Избери CSV файл…</div>
+      <div class="table-wrap">
+        <table id="preview"><thead></thead><tbody></tbody></table>
+      </div>
+    </section>
+    <section>
+      <h2>2) Настройки</h2>
+      <label>Категориална: <select id="catCol"></select></label>
+      <label>Числова: <select id="numCol"></select></label>
+      <label>Дата: <select id="dateCol"></select></label>
+      <button id="btnAnalyze">Анализирай</button>
+      <button id="btnCharts">Визуализации</button>
+      <button id="btnForecast">Прогноза</button>
+    </section>
+    <section>
+      <h2>3) Статистики</h2>
+      <div id="kpis"></div>
+      <table id="agg"><thead></thead><tbody></tbody></table>
+    </section>
+    <section>
+      <h2>4) Визуализации</h2>
+      <button data-download-chart>Свали графика</button>
+      <button data-download-all>Свали всички графики</button>
+      <canvas id="chart1"></canvas>
+      <canvas id="chart2"></canvas>
+      <canvas id="chart3"></canvas>
+    </section>
+    <section>
+      <h2>5) Автоматичен отчет</h2>
+      <textarea id="report" rows="10"></textarea>
+    </section>
+  </main>
 </body>
 </html>
