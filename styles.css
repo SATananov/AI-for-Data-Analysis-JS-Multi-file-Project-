@@ -1,11 +1,12 @@
-body{font-family:sans-serif;background:#0f172a;color:#e5e7eb;margin:0;padding:0}
+body{font-family:sans-serif;background:#0f172a;color:#e5e7eb;margin:0}
 header{background:#111827;padding:1rem;color:#22d3ee;display:flex;gap:1rem;align-items:center}
 main{padding:1rem}
 section{margin-bottom:2rem}
-button{padding:0.5rem 1rem;border:none;border-radius:6px;cursor:pointer;background:#22d3ee;color:#000;font-weight:bold}
+.row{display:flex;gap:.5rem;align-items:center;margin:.5rem 0}
+button{padding:.5rem 1rem;border:none;border-radius:6px;cursor:pointer;background:#22d3ee;color:#000;font-weight:bold}
 button:hover{background:#06b6d4}
-select,input[type=file],textarea{margin:0.5rem 0;padding:0.4rem;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#e5e7eb}
-table{border-collapse:collapse;width:100%;margin-top:0.5rem}
-th,td{border:1px solid #334155;padding:0.3rem;text-align:left}
+select,input[type=file],textarea{margin:.4rem 0;padding:.4rem;border-radius:6px;border:1px solid #334155;background:#1e293b;color:#e5e7eb}
+table{border-collapse:collapse;width:100%;margin-top:.5rem}
+th,td{border:1px solid #334155;padding:.3rem;text-align:left}
 .status{margin-top:.5rem;font-size:.9rem;color:#94a3b8}
 .table-wrap{max-height:260px;overflow:auto;border:1px solid #334155;border-radius:8px}
