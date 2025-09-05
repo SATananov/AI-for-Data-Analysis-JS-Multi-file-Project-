@@ -1,10 +1,10 @@
-// ===== app.js (robust delimiter handling) =====
+// ===== app.js (stable, with manual delimiter + small charts + per-chart downloads) =====
 const $ = s => document.querySelector(s);
 const fmt = new Intl.NumberFormat('bg-BG');
 const fmt2 = new Intl.NumberFormat('bg-BG', { maximumFractionDigits: 2 });
 
 let rawRows = [], headers = [], charts = [];
-let fileText = '';         // последният зареден CSV текст
+let fileText = '';         // последно зареденият CSV текст
 let usedDelimiter = 'auto';
 
 // ---------- helpers ----------
@@ -51,7 +51,7 @@ $('#btnReset').onclick = ()=>{
   fileText = '';
   usedDelimiter = 'auto';
   resetUI();
-  if($('#delimiterSel')) $('#delimiterSel').value = 'auto';
+  const sel = $('#delimiterSel'); if(sel) sel.value = 'auto';
 };
 
 // ---------- parsing core ----------
@@ -66,28 +66,25 @@ async function parseWithDelimiter(text, delim){
 }
 
 /**
- * Основна функция: парсира fileText с избрания разделител.
- * - 'auto' форсира ',' първо (най-често), после fallback към [';', '\t', '|'] ако излезе 1 колона.
- * - ако потребителят избере конкретен разделител, ползваме него директно; ако пак е 1 колона → правим същия fallback.
+ * Парсира fileText с избрания разделител.
+ * - 'auto' пробва последователно: ',' -> ';' -> '\t' -> '|'
+ * - ако е избран конкретен знак, опитва него, после fallback към останалите, докато намери поне 2 колони.
  */
 async function parseAndLoad(delimChoice){
   if (!fileText){ const st=$('#status'); if(st) st.textContent='Няма зареден файл.'; return; }
 
   const order = delimChoice === 'auto'
-    ? [',',';','\t','|']  // auto: пробваме поред
-    : [delimChoice, ',', ';', '\t', '|']; // избран: опитай него, после fallback
+    ? [',',';','\t','|']
+    : [delimChoice, ',', ';', '\t', '|'];
 
   let parsed = null, actualDelim = order[0];
 
   for(const d of order){
     const res = await parseWithDelimiter(fileText, d);
     const ok = res && res.meta && Array.isArray(res.meta.fields) && res.meta.fields.length > 1;
-    if (ok){
-      parsed = res; actualDelim = d; break;
-    }
+    if (ok){ parsed = res; actualDelim = d; break; }
   }
-
-  // ако все още няма parsed, последно приемаме дори 1 колона, за да покажем ясно състояние
+  // последен шанс: приемаме и 1 колона, за да покажем състояние
   if(!parsed){
     const res = await parseWithDelimiter(fileText, order[0]);
     parsed = res;
@@ -118,20 +115,22 @@ $('#file').addEventListener('change', async (e)=>{
   fileText = await new Promise(res=>{ const fr=new FileReader(); fr.onload=()=>res(String(fr.result||'')); fr.readAsText(file,'UTF-8'); });
   await parseAndLoad($('#delimiterSel') ? $('#delimiterSel').value : 'auto');
 });
-if($('#delimiterSel')){
-  $('#delimiterSel').addEventListener('change', async ()=>{
+const delimSel = $('#delimiterSel');
+if(delimSel){
+  delimSel.addEventListener('change', async ()=>{
     if (!fileText) return;
-    await parseAndLoad($('#delimiterSel').value);
+    await parseAndLoad(delimSel.value);
   });
 }
-if($('#btnReparse')){
-  $('#btnReparse').addEventListener('click', async ()=>{
+const btnReparse = $('#btnReparse');
+if(btnReparse){
+  btnReparse.addEventListener('click', async ()=>{
     if (!fileText){ const st=$('#status'); if(st) st.textContent='Няма зареден файл.'; return; }
-    await parseAndLoad($('#delimiterSel') ? $('#delimiterSel').value : 'auto');
+    await parseAndLoad(delimSel ? delimSel.value : 'auto');
   });
 }
 
-// ---------- analyze / charts / forecast / export ----------
+// ---------- analyze ----------
 $('#btnAnalyze').onclick=()=>{
   const cat=$('#catCol').value, num=$('#numCol').value, date=$('#dateCol').value;
   if(!rawRows.length){ alert('Първо зареди CSV.'); return; }
@@ -151,6 +150,7 @@ $('#btnAnalyze').onclick=()=>{
   window.__analysis={agg,cat,num,date};
 };
 
+// ---------- charts ----------
 $('#btnCharts').onclick=()=>{
   if(!window.__analysis){ alert('Първо Анализирай.'); return; }
   charts.forEach(c=>c.destroy()); charts=[];
@@ -158,10 +158,37 @@ $('#btnCharts').onclick=()=>{
   charts.push(new Chart($('#chart1'),{type:'bar',data:{labels:agg.map(r=>r.k),datasets:[{label:'Сума',data:agg.map(r=>r.v)}]}}));
   charts.push(new Chart($('#chart2'),{type:'line',data:{labels:agg.map(r=>r.k),datasets:[{label:'Сума',data:agg.map(r=>r.v)}]}}));
   charts.push(new Chart($('#chart3'),{type:'pie',data:{labels:agg.map(r=>r.k),datasets:[{data:agg.map(r=>r.v)}]}}));
-};
-$('[data-download-chart]').onclick=()=>{ if(!charts[0])return; const url=charts[0].toBase64Image(); const a=document.createElement('a'); a.href=url; a.download='chart.png'; a.click(); };
-$('[data-download-all]').onclick=()=>{ if(!charts.length)return; charts.forEach((ch,i)=>{ if(!ch)return; const url=ch.toBase64Image(); const a=document.createElement('a'); a.href=url; a.download=`chart_${i+1}.png`; a.click(); }); };
 
+  // вързваме бутоните под всяка графика
+  document.querySelectorAll('[data-download]').forEach(btn=>{
+    btn.onclick = ()=>{
+      const idx = Number(btn.getAttribute('data-download'))-1;
+      if(!charts[idx]) return;
+      const url = charts[idx].toBase64Image();
+      const a=document.createElement('a');
+      a.href=url;
+      a.download=`chart_${idx+1}.png`;
+      a.click();
+    };
+  });
+};
+// сваляне на всички
+const allBtn = document.querySelector('[data-download-all]');
+if(allBtn){
+  allBtn.onclick = ()=>{
+    if(!charts.length) return;
+    charts.forEach((ch,i)=>{
+      if(!ch) return;
+      const url=ch.toBase64Image();
+      const a=document.createElement('a');
+      a.href=url;
+      a.download=`chart_${i+1}.png`;
+      a.click();
+    });
+  };
+}
+
+// ---------- forecast ----------
 $('#btnForecast').onclick=()=>{
   const st=window.__analysis; if(!st){ alert('Първо Анализирай.'); return; }
   const num=st.num, dateCol=st.date;
@@ -191,6 +218,7 @@ $('#btnForecast').onclick=()=>{
   } catch(_){}
 };
 
+// ---------- export ----------
 $('#btnExport').onclick=()=>{
   const blob=new Blob([$('#report').value||'—'],{type:'text/plain;charset=utf-8'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='AI-Report.txt'; a.click();
