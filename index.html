@@ -1,4 +1,7 @@
 <!DOCTYPE html>
+<html lang="bg">
+<head>
+<meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>AI for Data Analysis (JS)</title>
 <link rel="stylesheet" href="./styles.css" />
@@ -18,9 +21,11 @@
 <section>
 <h2>1) Зареди данни</h2>
 <input type="file" id="file" accept=".csv,.tsv,.txt" />
-<p>Разделител: <span id="sep">auto<\/span> | <span id="shape">—<\/span><\/p>
-<div id="status" class="status">Избери CSV файл…<\/div>
+<p>Разделител: <span id="sep">auto</span> | <span id="shape">—</span></p>
+<div id="status" class="status">Избери CSV файл…</div>
+<div class="table-wrap">
 <table id="preview"><thead></thead><tbody></tbody></table>
+</div>
 </section>
 <section>
 <h2>2) Настройки</h2>
