@@ -87,3 +87,16 @@ canvas {
   border-radius: 8px;
   padding: .5rem;
 }
+
+.chart-box {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.chart-box h3 {
+  margin: .5rem 0;
+  color: #22d3ee;
+}
+.chart-box button {
+  margin-top: .5rem;
+}
